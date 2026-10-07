@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ratio Dash - Geometry Dash Math Review</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #080711;
+            color: #ffffff;
+            overflow: hidden;
+            user-select: none;
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .neon-text-cyan {
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.7), 0 0 20px rgba(0, 240, 255, 0.4);
+        }
+        .neon-text-pink {
+            text-shadow: 0 0 10px rgba(255, 0, 127, 0.7), 0 0 20px rgba(255, 0, 127, 0.4);
+        }
+        .neon-text-yellow {
+            text-shadow: 0 0 10px rgba(255, 230, 0, 0.8), 0 0 25px rgba(255, 230, 0, 0.5);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #00f0ff;
+            border-radius: 4px;
+        }
+
+        @keyframes popScale {
+            0% { transform: scale(0.4); opacity: 0; }
+            50% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1.0); opacity: 1; }
+        }
+        .animate-pop-scale {
+            animation: popScale 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between items-center bg-slate-950 text-white relative select-none">
+
+    <header class="w-full max-w-6xl px-4 py-3 flex items-center justify-between z-20">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-fuchsia-500 flex items-center justify-center font-black font-orbitron text-xl text-black shadow-lg shadow-cyan-500/30">
+                RD
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-black tracking-wider font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-yellow-400">
+                    RATIO DASH
+                </h1>
+                <p class="text-xs text-slate-400 font-medium hidden sm:block">Endless Geometry Math Review</p>
+            </div>
+        </div>
+
+        <!-- In-game stats HUD -->
+        <div class="flex items-center space-x-3 md:space-x-6 font-orbitron">
+            <div class="text-center bg-cyan-950/80 border border-cyan-400 px-3 py-1 rounded-xl shadow-lg shadow-cyan-500/20">
+                <div class="text-[10px] text-cyan-400 font-bold tracking-wider">NEXT QUESTION</div>
+                <div id="intervalTimerDisplay" class="text-lg md:text-2xl font-black text-cyan-300 neon-text-cyan">30.0s</div>
+            </div>
+            <div class="text-center">
+                <div class="text-[10px] text-slate-400">SCORE</div>
+                <div id="scoreDisplay" class="text-base md:text-xl font-bold text-white">0</div>
+            </div>
+            <div class="text-center">
+                <div class="text-[10px] text-pink-400">STREAK</div>
+                <div id="streakDisplay" class="text-base md:text-xl font-bold text-pink-400">0</div>
+            </div>
+            <div class="text-center hidden md:block">
+                <div class="text-[10px] text-yellow-400">HIGH SCORE</div>
+                <div id="highScoreDisplay" class="text-base md:text-xl font-bold text-yellow-400">0</div>
+            </div>
+            <button id="soundToggleBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/40 transition">
+                <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="relative w-full max-w-6xl flex-1 my-1 flex items-center justify-center px-2">
+        <div class="relative w-full h-full max-h-[580px] rounded-2xl overflow-hidden border-2 border-cyan-500/40 shadow-2xl shadow-cyan-950/80 bg-black">
+            <canvas id="gameCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+            <!-- Active Powerup Badges -->
+            <div class="absolute top-4 left-4 flex flex-col space-y-2 pointer-events-none">
+                <div id="shieldBadge" class="hidden px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400 text-cyan-300 text-xs font-bold font-orbitron flex items-center gap-1.5 backdrop-blur-md">
+                    <i class="fa-solid fa-shield-halved text-cyan-400"></i> SHIELD ACTIVE
+                </div>
+                <div id="boostBadge" class="hidden px-3 py-1 rounded-full bg-yellow-500/20 border border-yellow-400 text-yellow-300 text-xs font-bold font-orbitron flex items-center gap-1.5 backdrop-blur-md">
+                    <i class="fa-solid fa-bolt text-yellow-400"></i> SCORE 2X MULTIPLIER
+                </div>
+            </div>
+
+            <!-- Start Main Menu Overlay -->
+            <div id="startOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30 text-center">
+                <div class="max-w-lg w-full bg-slate-900/90 border border-cyan-500/30 rounded-2xl p-6 shadow-2xl shadow-cyan-500/20">
+                    <h2 class="text-3xl md:text-4xl font-black font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-yellow-400 mb-2">
+                        RATIO DASH
+                    </h2>
+                    <p class="text-slate-300 text-sm mb-6">
+                        Jump over spikes and platforms! Every <strong>30 seconds</strong>, the game pauses for a 3-question ratio math challenge!
+                    </p>
+
+                    <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 mb-6 text-left text-xs text-slate-300 space-y-2 font-mono">
+                        <div class="flex items-center gap-2"><span class="text-cyan-400 font-bold">[SPACE / UP / TAP]</span> Jump / Bounce off pads</div>
+                        <div class="flex items-center gap-2"><span class="text-yellow-400 font-bold">[30 SECONDS]</span> Solve 3 Ratio Questions</div>
+                        <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">[3... 2... 1...]</span> Resume Countdown</div>
+                        <div class="flex items-center gap-2"><span class="text-pink-400 font-bold">[CRASH]</span> Hitting obstacles resets run</div>
+                    </div>
+
+                    <button id="startGameBtn" class="w-full py-4 rounded-xl font-orbitron font-bold text-lg bg-gradient-to-r from-cyan-500 to-fuchsia-600 hover:from-cyan-400 hover:to-fuchsia-500 text-black shadow-lg shadow-cyan-500/30 transition transform active:scale-95">
+                        START RUN
+                    </button>
+                </div>
+            </div>
+
+            <!-- Math Question Gate Overlay -->
+            <div id="mathOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-lg flex flex-col items-center justify-center p-4 z-40">
+                <div class="max-w-xl w-full bg-slate-900 border-2 border-cyan-400 rounded-2xl p-6 shadow-2xl shadow-cyan-500/30 text-center relative">
+                    <div class="inline-block px-4 py-1 rounded-full bg-cyan-500/20 border border-cyan-400 text-cyan-300 text-xs font-bold font-orbitron tracking-widest uppercase mb-2">
+                        <i class="fa-solid fa-lock text-cyan-400 mr-1"></i> 30-Second Math Gate
+                    </div>
+
+                    <!-- 3-Question Progress Indicators -->
+                    <div class="flex items-center justify-between mb-3 px-2">
+                        <span id="gateProgressText" class="text-xs font-bold font-orbitron text-cyan-400">QUESTION 1 OF 3</span>
+                        <div class="flex space-x-1.5" id="gateDots">
+                            <div id="dot-0" class="w-3 h-3 rounded-full border border-cyan-400 bg-slate-800 transition-all duration-300"></div>
+                            <div id="dot-1" class="w-3 h-3 rounded-full border border-cyan-400 bg-slate-800 transition-all duration-300"></div>
+                            <div id="dot-2" class="w-3 h-3 rounded-full border border-cyan-400 bg-slate-800 transition-all duration-300"></div>
+                        </div>
+                    </div>
+
+                    <!-- Question Counter Progress Bar -->
+                    <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden mb-4 border border-slate-800">
+                        <div id="gateProgressBar" class="bg-gradient-to-r from-cyan-400 to-fuchsia-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+
+                    <h3 id="questionTitle" class="text-slate-300 text-sm font-semibold mb-1">Simplify the given ratio:</h3>
+                    
+                    <div id="questionDisplay" class="text-3xl md:text-4xl font-black font-orbitron text-cyan-300 my-3 neon-text-cyan py-3 bg-slate-950/80 rounded-xl border border-cyan-500/30">
+                        12 : 18
+                    </div>
+
+                    <div id="optionsContainer" class="grid grid-cols-2 gap-3 my-4">
+                        <!-- Dynamic Buttons Inserted via JS -->
+                    </div>
+
+                    <div id="mathFeedback" class="min-h-[2.5rem] flex items-center justify-center text-xs font-bold font-orbitron px-3 py-1 rounded-lg">
+                        Answer 3 questions correctly to unlock the track!
+                    </div>
+                </div>
+            </div>
+
+            <div id="countdownOverlay" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center z-50">
+                <div class="text-center">
+                    <p class="text-cyan-400 font-orbitron text-sm md:text-base tracking-widest font-bold uppercase mb-2">
+                        Get Ready To Dash!
+                    </p>
+                    <div id="countdownNumber" class="text-7xl md:text-9xl font-black font-orbitron text-yellow-300 neon-text-yellow animate-pop-scale">
+                        3
+                    </div>
+                    <p class="text-slate-400 text-xs font-orbitron mt-4">
+                        Controls: <span class="text-cyan-400 font-bold">[SPACE / UP / TAP]</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Game Over Screen Overlay -->
+            <div id="gameOverOverlay" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30 text-center">
+                <div class="max-w-md w-full bg-slate-900 border border-pink-500/30 rounded-2xl p-6 shadow-2xl shadow-pink-500/20">
+                    <h2 class="text-3xl font-black font-orbitron text-pink-500 neon-text-pink mb-2">CRASHED!</h2>
+                    <p id="gameOverReason" class="text-slate-300 text-sm mb-4">You hit an obstacle!</p>
+
+                    <div class="grid grid-cols-2 gap-3 bg-slate-950/80 p-4 rounded-xl border border-slate-800 mb-6 font-orbitron">
+                        <div>
+                            <div class="text-[10px] text-slate-400">FINAL SCORE</div>
+                            <div id="finalScore" class="text-xl font-bold text-white">0</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-pink-400">MATH STREAK</div>
+                            <div id="finalStreak" class="text-xl font-bold text-pink-400">0</div>
+                        </div>
+                    </div>
+
+                    <button id="restartGameBtn" class="w-full py-3.5 rounded-xl font-orbitron font-bold text-base bg-gradient-to-r from-pink-500 to-yellow-500 hover:from-pink-400 hover:to-yellow-400 text-black shadow-lg shadow-pink-500/30 transition transform active:scale-95">
+                        TRY AGAIN
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full max-w-6xl px-4 py-2 flex items-center justify-between text-xs text-slate-400">
+        <div>Controls: <span class="text-cyan-400 font-semibold">[SPACE]</span> / <span class="text-cyan-400 font-semibold">[UP ARROW]</span> / <span class="text-cyan-400 font-semibold">[TAP]</span> to Jump</div>
+        <div>Ratio & Proportion Practice (CCSS.MATH.CONTENT.6.RP.A.1)</div>
+    </footer>
+
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            }
+
+            playJump() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(450, this.ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.12);
+            }
+
+            playPad() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(850, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            }
+
+            playCorrect() {
+                if (this.muted || !this.ctx) return;
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.1, this.ctx.currentTime + idx * 0.08);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.08 + 0.15);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.08);
+                    osc.stop(this.ctx.currentTime + idx * 0.08 + 0.15);
+                });
+            }
+
+            playWrong() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(90, this.ctx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            }
+
+            playCrash() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.35);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.35);
+            }
+
+            playBeep(isFinal = false) {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(isFinal ? 880 : 440, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + (isFinal ? 0.3 : 0.15));
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + (isFinal ? 0.3 : 0.15));
+            }
+        }
+
+        const soundEngine = new SoundEngine();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let gameState = 'MENU'; // 'MENU', 'PLAYING', 'MATH_PAUSE', 'COUNTDOWN', 'GAMEOVER'
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('ratioDash_highScore') || '0');
+        let currentStreak = 0;
+        let speed = 6.5;
+        let gameTime = 0;
+
+        const INTERVAL_DURATION = 30.0;
+        let timeRemainingInInterval = INTERVAL_DURATION;
+        let lastFrameTime = performance.now();
+
+        const GRAVITY = 0.65;
+        const JUMP_FORCE = -12.5;
+        const JUMP_PAD_FORCE = -17.5;
+        let groundY = canvas.height - 60;
+
+        const player = {
+            x: 100,
+            y: 0,
+            width: 36,
+            height: 36,
+            velocityY: 0,
+            isGrounded: false,
+            rotation: 0,
+            hasShield: false,
+            scoreMultiplier: 1,
+
+            reset() {
+                groundY = canvas.height - 60;
+                this.x = 100;
+                this.y = groundY - this.height;
+                this.velocityY = 0;
+                this.isGrounded = true;
+                this.rotation = 0;
+                this.hasShield = false;
+                this.scoreMultiplier = 1;
+            }
+        };
+
+        let obstacles = [];
+        let particles = [];
+        let backgroundStars = [];
+        let activeQuestion = null;
+        let lastObstacleX = 600;
+
+        // Math Gate & Countdown State Variables
+        let gateQuestionsSolved = 0;
+        const REQUIRED_GATE_QUESTIONS = 3;
+
+        for (let i = 0; i < 40; i++) {
+            backgroundStars.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * (canvas.height - 80),
+                size: Math.random() * 2 + 1,
+                speed: Math.random() * 0.8 + 0.2
+            });
+        }
+
+        document.getElementById('highScoreDisplay').innerText = highScore;
+
+        function spawnMapElements() {
+            groundY = canvas.height - 60;
+            const spawnDistanceThreshold = canvas.width + 800;
+
+            while (lastObstacleX < spawnDistanceThreshold) {
+                const minGap = 260 + Math.random() * 180;
+                lastObstacleX += minGap;
+
+                const rand = Math.random();
+
+                if (rand < 0.40) {
+                    // Spikes on ground - aligned directly on ground level
+                    const spikeCount = Math.floor(Math.random() * 2) + 1;
+                    const spikeW = 30;
+                    const spikeH = 36;
+                    for (let i = 0; i < spikeCount; i++) {
+                        obstacles.push({
+                            type: 'spike',
+                            x: lastObstacleX + (i * spikeW),
+                            y: groundY - spikeH,
+                            width: spikeW,
+                            height: spikeH
+                        });
+                    }
+                    lastObstacleX += (spikeCount - 1) * spikeW;
+                } 
+                else if (rand < 0.70) {
+                    // Solid Platform Block
+                    const blockW = 50;
+                    const blockH = 40;
+                    const isHigh = Math.random() < 0.35;
+                    const blockY = isHigh ? groundY - 80 : groundY - blockH;
+
+                    obstacles.push({
+                        type: 'block',
+                        x: lastObstacleX,
+                        y: blockY,
+                        width: blockW,
+                        height: blockH
+                    });
+
+                    if (Math.random() < 0.45) {
+                        obstacles.push({
+                            type: 'pad',
+                            x: lastObstacleX + 10,
+                            y: blockY - 10,
+                            width: 30,
+                            height: 10
+                        });
+                    }
+                } 
+                else if (rand < 0.88) {
+                    // Ground Jump Pad Boost
+                    const padH = 10;
+                    obstacles.push({
+                        type: 'pad',
+                        x: lastObstacleX,
+                        y: groundY - padH,
+                        width: 36,
+                        height: padH
+                    });
+                } 
+                else {
+                    // Elevated block with spike on top
+                    const blockW = 60;
+                    const blockH = 38;
+                    const blockY = groundY - blockH;
+
+                    obstacles.push({
+                        type: 'block',
+                        x: lastObstacleX,
+                        y: blockY,
+                        width: blockW,
+                        height: blockH
+                    });
+
+                    obstacles.push({
+                        type: 'spike',
+                        x: lastObstacleX + 15,
+                        y: blockY - 34,
+                        width: 30,
+                        height: 34
+                    });
+                    lastObstacleX += blockW;
+                }
+            }
+        }
+
+        function gcd(a, b) {
+            return b === 0 ? a : gcd(b, a % b);
+        }
+
+        function generateRatioQuestion() {
+            const types = ['SIMPLIFY', 'EQUIVALENT_MISSING'];
+            const chosenType = types[Math.floor(Math.random() * types.length)];
+
+            if (chosenType === 'SIMPLIFY') {
+                const a = Math.floor(Math.random() * 7) + 1;
+                let b = Math.floor(Math.random() * 7) + 1;
+                while (gcd(a, b) !== 1 || a === b) {
+                    b = Math.floor(Math.random() * 7) + 1;
+                }
+
+                const k = Math.floor(Math.random() * 5) + 2;
+                const origA = a * k;
+                const origB = b * k;
+
+                const correctAnswer = `${a} : ${b}`;
+                const optionsSet = new Set([correctAnswer]);
+
+                while (optionsSet.size < 4) {
+                    let altA = a + Math.floor(Math.random() * 3) - 1;
+                    let altB = b + Math.floor(Math.random() * 3) - 1;
+                    if (altA <= 0) altA = 1;
+                    if (altB <= 0) altB = 1;
+                    optionsSet.add(`${altA} : ${altB}`);
+                }
+
+                return {
+                    title: "Simplify the given ratio to simplest form:",
+                    questionText: `${origA} : ${origB}`,
+                    options: Array.from(optionsSet).sort(() => Math.random() - 0.5),
+                    correct: correctAnswer,
+                    hint: `Divide both numbers by their Greatest Common Factor (${k}).`
+                };
+            } else {
+                const a = Math.floor(Math.random() * 6) + 2;
+                const b = Math.floor(Math.random() * 6) + 2;
+                const multiplier = Math.floor(Math.random() * 4) + 2;
+
+                const missingVal = b * multiplier;
+                const givenVal = a * multiplier;
+
+                const correctAnswer = `${missingVal}`;
+                const optionsSet = new Set([correctAnswer]);
+
+                while (optionsSet.size < 4) {
+                    let distractor = missingVal + (Math.floor(Math.random() * 7) - 3);
+                    if (distractor > 0) optionsSet.add(`${distractor}`);
+                }
+
+                return {
+                    title: `Find the missing value (?) for equivalent ratios:`,
+                    questionText: `${a} : ${b}  =  ${givenVal} : ?`,
+                    options: Array.from(optionsSet).sort(() => Math.random() - 0.5),
+                    correct: correctAnswer,
+                    hint: `Since ${a} × ${multiplier} = ${givenVal}, multiply ${b} × ${multiplier}.`
+                };
+            }
+        }
+
+        function triggerJump() {
+            if (gameState === 'PLAYING' && player.isGrounded) {
+                player.velocityY = JUMP_FORCE;
+                player.isGrounded = false;
+                soundEngine.playJump();
+                createExplosion(player.x + 10, player.y + player.height, '#00f0ff', 6);
+            }
+        }
+
+        function createExplosion(x, y, color, count = 12) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    size: Math.random() * 4 + 2,
+                    color: color,
+                    life: 1.0,
+                    decay: Math.random() * 0.05 + 0.02
+                });
+            }
+        }
+
+        function triggerMathChallenge() {
+            gameState = 'MATH_PAUSE';
+            gateQuestionsSolved = 0;
+            updateGateUI();
+            presentNextGateQuestion();
+            document.getElementById('mathOverlay').classList.remove('hidden');
+        }
+
+        function updateGateUI() {
+            document.getElementById('gateProgressText').innerText = `QUESTION ${gateQuestionsSolved + 1} OF ${REQUIRED_GATE_QUESTIONS}`;
+            document.getElementById('gateProgressBar').style.width = `${(gateQuestionsSolved / REQUIRED_GATE_QUESTIONS) * 100}%`;
+
+            for (let i = 0; i < REQUIRED_GATE_QUESTIONS; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (i < gateQuestionsSolved) {
+                    dot.className = 'w-3 h-3 rounded-full bg-emerald-400 border border-emerald-300 shadow-md shadow-emerald-400/50 scale-110';
+                } else if (i === gateQuestionsSolved) {
+                    dot.className = 'w-3 h-3 rounded-full bg-cyan-400 border border-cyan-200 animate-pulse scale-110';
+                } else {
+                    dot.className = 'w-3 h-3 rounded-full border border-slate-700 bg-slate-800';
+                }
+            }
+        }
+
+        function presentNextGateQuestion() {
+            activeQuestion = generateRatioQuestion();
+
+            document.getElementById('questionTitle').innerText = activeQuestion.title;
+            document.getElementById('questionDisplay').innerText = activeQuestion.questionText;
+
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = '';
+
+            activeQuestion.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'py-3.5 px-4 rounded-xl font-orbitron font-bold text-lg bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 transition transform active:scale-95 shadow-md';
+                btn.innerText = opt;
+                btn.onclick = () => handleMathAnswer(opt);
+                container.appendChild(btn);
+            });
+
+            const feedback = document.getElementById('mathFeedback');
+            feedback.className = 'min-h-[2.5rem] flex items-center justify-center text-xs font-bold font-orbitron px-3 py-1 rounded-lg bg-slate-950 text-cyan-400 border border-slate-800';
+            feedback.innerText = `Question ${gateQuestionsSolved + 1} of ${REQUIRED_GATE_QUESTIONS}: Select the correct answer!`;
+        }
+
+        function handleMathAnswer(selectedOption) {
+            const feedback = document.getElementById('mathFeedback');
+
+            if (selectedOption === activeQuestion.correct) {
+                soundEngine.playCorrect();
+                gateQuestionsSolved++;
+                currentStreak++;
+                document.getElementById('streakDisplay').innerText = currentStreak;
+
+                if (currentStreak % 3 === 0) {
+                    player.hasShield = true;
+                    document.getElementById('shieldBadge').classList.remove('hidden');
+                }
+                if (currentStreak % 5 === 0) {
+                    player.scoreMultiplier = 2;
+                    document.getElementById('boostBadge').classList.remove('hidden');
+                }
+
+                updateGateUI();
+
+                if (gateQuestionsSolved >= REQUIRED_GATE_QUESTIONS) {
+                    feedback.className = 'min-h-[2.5rem] flex items-center justify-center text-xs font-bold font-orbitron px-3 py-1 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-500/50';
+                    feedback.innerText = 'ALL 3 CORRECT! GET READY...';
+
+                    setTimeout(() => {
+                        document.getElementById('mathOverlay').classList.add('hidden');
+                        startResumeCountdown();
+                    }, 800);
+                } else {
+                    feedback.className = 'min-h-[2.5rem] flex items-center justify-center text-xs font-bold font-orbitron px-3 py-1 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-500/50';
+                    feedback.innerText = `CORRECT! (${gateQuestionsSolved}/${REQUIRED_GATE_QUESTIONS}) Loading next question...`;
+
+                    setTimeout(() => {
+                        presentNextGateQuestion();
+                    }, 600);
+                }
+            } else {
+                soundEngine.playWrong();
+                currentStreak = 0;
+                gateQuestionsSolved = 0;
+                player.scoreMultiplier = 1;
+                document.getElementById('streakDisplay').innerText = '0';
+                document.getElementById('boostBadge').classList.add('hidden');
+
+                updateGateUI();
+
+                feedback.className = 'min-h-[2.5rem] flex items-center justify-center text-xs font-bold font-orbitron px-3 py-1 rounded-lg bg-rose-950/80 text-rose-400 border border-rose-500/50';
+                feedback.innerText = `INCORRECT. Progress reset! ${activeQuestion.hint}`;
+
+                setTimeout(() => {
+                    presentNextGateQuestion();
+                }, 1600);
+            }
+        }
+
+        function startResumeCountdown() {
+            gameState = 'COUNTDOWN';
+            const countdownOverlay = document.getElementById('countdownOverlay');
+            const countdownNumber = document.getElementById('countdownNumber');
+            
+            countdownOverlay.classList.remove('hidden');
+
+            let secondsLeft = 3;
+
+            function triggerTick(val) {
+                countdownNumber.classList.remove('animate-pop-scale');
+                void countdownNumber.offsetWidth; // Force CSS reflow for animation reset
+                countdownNumber.classList.add('animate-pop-scale');
+
+                if (val > 0) {
+                    countdownNumber.innerText = val;
+                    countdownNumber.className = 'text-7xl md:text-9xl font-black font-orbitron text-yellow-300 neon-text-yellow animate-pop-scale';
+                    soundEngine.playBeep(false);
+                } else {
+                    countdownNumber.innerText = 'GO!';
+                    countdownNumber.className = 'text-7xl md:text-9xl font-black font-orbitron text-cyan-300 neon-text-cyan animate-pop-scale';
+                    soundEngine.playBeep(true);
+                }
+            }
+
+            triggerTick(secondsLeft);
+
+            const timerInterval = setInterval(() => {
+                secondsLeft--;
+                if (secondsLeft >= 0) {
+                    triggerTick(secondsLeft);
+                } else {
+                    clearInterval(timerInterval);
+                    countdownOverlay.classList.add('hidden');
+                    
+                    timeRemainingInInterval = INTERVAL_DURATION;
+                    lastFrameTime = performance.now();
+                    gameState = 'PLAYING';
+                }
+            }, 1000);
+        }
+
+        function handleGameOver(reason) {
+            gameState = 'GAMEOVER';
+            soundEngine.playCrash();
+            createExplosion(player.x + 18, player.y + 18, '#ff007f', 30);
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('ratioDash_highScore', highScore.toString());
+                document.getElementById('highScoreDisplay').innerText = highScore;
+            }
+
+            document.getElementById('gameOverReason').innerText = reason;
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('finalStreak').innerText = currentStreak;
+
+            document.getElementById('gameOverOverlay').classList.remove('hidden');
+        }
+
+        function update(deltaTime) {
+            if (gameState !== 'PLAYING') return;
+
+            timeRemainingInInterval -= deltaTime;
+            if (timeRemainingInInterval <= 0) {
+                timeRemainingInInterval = 0;
+                document.getElementById('intervalTimerDisplay').innerText = '0.0s';
+                triggerMathChallenge();
+                return;
+            } else {
+                document.getElementById('intervalTimerDisplay').innerText = `${timeRemainingInInterval.toFixed(1)}s`;
+            }
+
+            gameTime++;
+            score += Math.round(1 * player.scoreMultiplier);
+            document.getElementById('scoreDisplay').innerText = score;
+
+            // Player Physics
+            player.velocityY += GRAVITY;
+            player.y += player.velocityY;
+
+            groundY = canvas.height - 60;
+
+            // Check floor boundary
+            if (player.y + player.height >= groundY) {
+                player.y = groundY - player.height;
+                player.velocityY = 0;
+                player.isGrounded = true;
+                player.rotation = Math.round(player.rotation / (Math.PI / 2)) * (Math.PI / 2);
+            } else {
+                player.isGrounded = false;
+                player.rotation += 0.15;
+            }
+
+            // Move starfield
+            backgroundStars.forEach(star => {
+                star.x -= star.speed;
+                if (star.x < 0) star.x = canvas.width;
+            });
+
+            // Ensure endless obstacles generate ahead
+            spawnMapElements();
+            lastObstacleX -= speed;
+
+            // Update & Collision check for obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.x -= speed;
+
+                // Strict AABB Overlap check
+                const isOverlapping = 
+                    player.x + 4 < obs.x + obs.width &&
+                    player.x + player.width - 4 > obs.x &&
+                    player.y + 4 < obs.y + obs.height &&
+                    player.y + player.height > obs.y;
+
+                if (isOverlapping) {
+                    if (obs.type === 'spike') {
+                        if (player.hasShield) {
+                            player.hasShield = false;
+                            document.getElementById('shieldBadge').classList.add('hidden');
+                            createExplosion(obs.x + obs.width / 2, obs.y, '#00f0ff', 20);
+                            obstacles.splice(i, 1);
+                            soundEngine.playCrash();
+                        } else {
+                            handleGameOver("Impacted a lethal neon spike!");
+                            return;
+                        }
+                    } 
+                    else if (obs.type === 'block') {
+                        const previousPlayerBottom = (player.y - player.velocityY) + player.height;
+
+                        if (previousPlayerBottom <= obs.y + 12 && player.velocityY >= 0) {
+                            player.y = obs.y - player.height;
+                            player.velocityY = 0;
+                            player.isGrounded = true;
+                        } else {
+                            if (player.hasShield) {
+                                player.hasShield = false;
+                                document.getElementById('shieldBadge').classList.add('hidden');
+                                obstacles.splice(i, 1);
+                                soundEngine.playCrash();
+                            } else {
+                                handleGameOver("Head-on impact with platform barrier!");
+                                return;
+                            }
+                        }
+                    } 
+                    else if (obs.type === 'pad') {
+                        player.velocityY = JUMP_PAD_FORCE;
+                        player.isGrounded = false;
+                        soundEngine.playPad();
+                        createExplosion(obs.x + obs.width / 2, obs.y, '#ffe600', 14);
+                    }
+                }
+
+                if (obs.x + obs.width < -150) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= p.decay;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function render() {
+            groundY = canvas.height - 60;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Background
+            ctx.fillStyle = '#080711';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            backgroundStars.forEach(star => {
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+
+            // 2. Floor Line
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00f0ff';
+
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(canvas.width, groundY);
+            ctx.stroke();
+
+            // Grid Lines
+            const gridOffset = (gameTime * speed) % 40;
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.shadowBlur = 0;
+
+            for (let x = -gridOffset; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, groundY);
+                ctx.lineTo(x - 20, canvas.height);
+                ctx.stroke();
+            }
+
+            // 3. Obstacles Rendering
+            obstacles.forEach(obs => {
+                if (obs.type === 'spike') {
+                    ctx.fillStyle = '#ff007f';
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#ff007f';
+
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x, obs.y + obs.height);
+                    ctx.lineTo(obs.x + obs.width / 2, obs.y);
+                    ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (obs.type === 'block') {
+                    ctx.fillStyle = '#1e1b4b';
+                    ctx.strokeStyle = '#00f0ff';
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#00f0ff';
+
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+
+                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)';
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x, obs.y);
+                    ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
+                    ctx.moveTo(obs.x + obs.width, obs.y);
+                    ctx.lineTo(obs.x, obs.y + obs.height);
+                    ctx.stroke();
+                } else if (obs.type === 'pad') {
+                    ctx.fillStyle = '#ffe600';
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#ffe600';
+
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                }
+            });
+
+            // 4. Player Cube
+            ctx.save();
+            ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+            ctx.rotate(player.rotation);
+
+            ctx.fillStyle = '#00f0ff';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2.5;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00f0ff';
+
+            ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
+            ctx.strokeRect(-player.width / 2, -player.height / 2, player.width, player.height);
+
+            // Cube Eyes
+            ctx.fillStyle = '#080711';
+            ctx.fillRect(-8, -8, 6, 6);
+            ctx.fillRect(2, -8, 6, 6);
+            ctx.fillRect(-6, 4, 12, 3);
+
+            ctx.restore();
+
+            // 5. Particles
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            });
+            ctx.globalAlpha = 1.0;
+            ctx.shadowBlur = 0;
+        }
+
+        function gameLoop(timestamp) {
+            const deltaTime = (timestamp - lastFrameTime) / 1000;
+            lastFrameTime = timestamp;
+
+            if (deltaTime < 0.25) {
+                update(deltaTime);
+            }
+            render();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            soundEngine.init();
+            score = 0;
+            currentStreak = 0;
+            speed = 6.5;
+            gameTime = 0;
+            timeRemainingInInterval = INTERVAL_DURATION;
+            lastFrameTime = performance.now();
+
+            obstacles = [];
+            particles = [];
+            lastObstacleX = canvas.width + 200;
+            player.reset();
+
+            document.getElementById('scoreDisplay').innerText = '0';
+            document.getElementById('streakDisplay').innerText = '0';
+            document.getElementById('intervalTimerDisplay').innerText = '30.0s';
+            document.getElementById('shieldBadge').classList.add('hidden');
+            document.getElementById('boostBadge').classList.add('hidden');
+
+            document.getElementById('startOverlay').classList.add('hidden');
+            document.getElementById('gameOverOverlay').classList.add('hidden');
+            document.getElementById('mathOverlay').classList.add('hidden');
+            document.getElementById('countdownOverlay').classList.add('hidden');
+
+            gameState = 'PLAYING';
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                triggerJump();
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            triggerJump();
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            triggerJump();
+        }, { passive: false });
+
+        document.getElementById('startGameBtn').onclick = startGame;
+        document.getElementById('restartGameBtn').onclick = startGame;
+
+        document.getElementById('soundToggleBtn').onclick = () => {
+            soundEngine.init();
+            soundEngine.muted = !soundEngine.muted;
+            const icon = document.getElementById('soundIcon');
+            icon.className = soundEngine.muted ? 'fa-solid fa-volume-xmark text-rose-400' : 'fa-solid fa-volume-high text-cyan-400';
+        };
+
+        window.onload = () => {
+            lastFrameTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
